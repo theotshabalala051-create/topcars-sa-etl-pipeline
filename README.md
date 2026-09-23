@@ -104,7 +104,7 @@ Raw CSVs are loaded into Delta tables with minimal changes — only fixing colum
 
 - ✅ Bronze layer — complete, verified, version-controlled
 - ✅ Silver layer —  complete, verified (USD→ZAR conversion, referential integrity confirmed)
-- ❎ Gold layer — not started
+- ✅ Gold layer — complete, verified, version-controlled
 - ❎ Looker Studio dashboard — not started
 
 ---
