@@ -110,13 +110,45 @@ Raw CSVs are loaded into Delta tables with minimal changes — only fixing colum
 ---
 
 ## 📖 What I Learned
-Schema inference isn't guesswork — Databricks correctly auto-detected date and numeric types straight from raw CSVs, but Delta Lake strictly rejects invalid characters (spaces, parentheses) in column names, requiring explicit renaming during ingestion.
-Verification beats assumption — a table can report "success" while silently loading zero rows; tracing the issue from read_files() → raw file bytes → Spark's distributed reader revealed a stale file-metadata cache, fixed by re-uploading the source file.
-Star schemas separate facts from lookups — fact_sales is built from transactional data (sales_silver), not from dimension tables, which only supply surrogate keys for stable, non-breaking joins.
-Centralized the exchange rate as a single SQL variable instead of hardcoding it in every calculation — one place to update, consistent everywhere.
-A missing comma silently dropped a column from `sales_silver` with no visible error. Learned to always verify with `DESCRIBE TABLE` after any `CREATE OR REPLACE`, not just trust the code on screen. (If this was a job, I'd be jobless now.)
-Checked referential integrity (`NOT IN` subqueries) before trusting `sales_silver` as the fact table source — catches orphaned records that would silently break joins later.
+### Bronze Layer
 
+- Schema inference isn't guesswork — Databricks correctly auto-detected 
+  date and numeric types straight from raw CSVs, but Delta Lake strictly 
+  rejects invalid characters (spaces, parentheses) in column names, 
+  requiring explicit renaming during ingestion.
+- Verification beats assumption — a table can report "success" while 
+  silently loading zero rows; tracing the issue from `read_files()` → 
+  raw file bytes → Spark's distributed reader revealed a stale 
+  file-metadata cache, fixed by re-uploading the source file.
+- Star schemas separate facts from lookups — `fact_sales` is built from 
+  transactional data (`sales_silver`), not from dimension tables, which 
+  only supply surrogate keys for stable, non-breaking joins.
+
+### Silver Layer
+
+- Centralized the exchange rate as a single SQL variable instead of 
+  hardcoding it in every calculation — one place to update, consistent 
+  everywhere.
+- A missing comma silently dropped a column from `sales_silver` with 
+  no visible error. Learned to always verify with `DESCRIBE TABLE` 
+  after any `CREATE OR REPLACE`, not just trust the code on screen. 
+  (If this was a job, I'd be jobless now.)
+- Checked referential integrity (`NOT IN` subqueries) before trusting 
+  `sales_silver` as the fact table source — catches orphaned records 
+  that would silently break joins later.
+
+### Gold Layer
+
+- A dimension holds descriptive attributes; a fact holds transactional 
+  measures. Removed Price/Profit from `dim_model` since those belong 
+  to individual sales, not the model itself.
+- Surrogate keys (`DealerKey`, `ModelKey`, `DateKey`) generated with 
+  `ROW_NUMBER()`, natural keys kept alongside for traceability.
+- `dim_date` isn't built from source data — generated independently 
+  with `sequence()`/`explode()` to get one row per calendar day.
+- Verified `fact_sales` by matching its row count (218) against 
+  `sales_silver` — proof every sale joined cleanly to all three 
+  dimensions, with nothing silently dropped.
 ---
 
 ## 👤 Author
